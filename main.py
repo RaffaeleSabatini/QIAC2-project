@@ -9,10 +9,10 @@ from colorama import Fore
 def checkpoint(DEBUG, msg="", col=""):
     if DEBUG:
         if msg != "":
-            final_msg = Fore.GREEN + "Checkpoint: "
+            final_msg = Fore.GREEN + "Checkpoint: " + Fore.RESET
             final_msg += msg
         else:
-            final_msg = Fore.Green + "Checkpoint!"
+            final_msg = Fore.Green + "Checkpoint!" + Fore.RESET
         
         final_msg += "\n"
         print(final_msg)
@@ -59,21 +59,25 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
     h_chain[mask == False] = 0
 
     # Iterating decimation as long as OMEGA > thresh
-    it = 1; error = 1e9; N_s = N
-    while error > thresh or it < 100:
-        print(f"{"-"*60}\nIteration: {it} \t error: {error} \t Number of sites: {N_s}\n")
+    it = 0; error = 1e9; N_s = N
+    while (error > thresh) and (it < 100) and (N_s > 2):
         it += 1
+        N_s = h_chain.shape[0] # Number of sites
 
+        error_message(h_chain.shape[0] != gamma_chain.shape[0], "Size mismatch between h-chain and gamma-chain")
+        print(f"{"="*90}\n\nIteration: {it} \t error: {error} \t Number of sites: {N_s}\n")
+        
         kappa_chain = np.sqrt(gamma_chain**2 + h_chain**2)
-
-        parameters = np.concatenate([kappa_chain, J_chain])
+        parameters = np.concatenate([2*J_chain, kappa_chain])
         max_idx = np.argmax(parameters)
         OMEGA = parameters[max_idx]
 
-        checkpoint(DEBUG, msg=f"OMEGA: {OMEGA} \t spin site: {max_idx if max_idx<N else max_idx-N}")
+        checkpoint(DEBUG, msg=f"OMEGA: {OMEGA} \t maximum index: {(max_idx, "[COUPLING]") if max_idx <= N_s-2 else (max_idx-(N_s-1), "[FIELD]")}")
+        checkpoint(DEBUG, msg=f"Coupling chain: {J_chain}")
+        checkpoint(DEBUG, msg=f"kappa chain: {kappa_chain}")
         error = OMEGA
         
-        if max_idx < N: # maximum parameter is a coupling
+        if max_idx <= N_s-2: # maximum parameter is a coupling
             gamma_tilde = gamma_chain[max_idx]*gamma_chain[max_idx+1]/J_chain[max_idx]
             h_tilde     = h_chain[max_idx] + h_chain[max_idx+1]
 
@@ -86,21 +90,49 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
             h_chain = np.delete(h_chain, max_idx+1)
             h_chain[max_idx] = h_tilde
 
-        else:  # maximum parameter is a field
-            max_idx = max_idx-N
+        else:            # maximum parameter is a field
+            max_idx = max_idx-(N_s-1)
 
-            J_tilde       = J_chain[max_idx]*J_chain[max_idx-1]/gamma_chain[max_idx] * (gamma_chain[max_idx]/gamma_chain[max_idx])**2
-            h_tilde_plus  = h_chain[max_idx+1] + J_chain[max_idx]*h_chain[max_idx]/gamma_chain[max_idx]
-            h_tilde_minus = h_chain[max_idx-1] + J_chain[max_idx-1]*h_chain[max_idx]/gamma_chain[max_idx]
+            if max_idx <= N_s-2 and max_idx >= 1: 
+                # maximum parameter belongs to INTERNAL site 
+                J_tilde       = J_chain[max_idx]*J_chain[max_idx-1]/gamma_chain[max_idx] * (gamma_chain[max_idx]/gamma_chain[max_idx])**2
+                h_tilde_plus  = h_chain[max_idx+1] + J_chain[max_idx]*h_chain[max_idx]/gamma_chain[max_idx]
+                h_tilde_minus = h_chain[max_idx-1] + J_chain[max_idx-1]*h_chain[max_idx]/gamma_chain[max_idx]
 
-            # Decimation step
-            J_chain = np.delete(J_chain, max_idx)
-            J_chain[max_idx-1] = J_tilde
+                # Decimation step
+                J_chain = np.delete(J_chain, max_idx)
+                J_chain[max_idx-1] = J_tilde
 
-            gamma_chain = np.delete(gamma_chain, max_idx)
+                gamma_chain = np.delete(gamma_chain, max_idx)
 
-            h_chain[max_idx-1] = h_tilde_minus; h_chain[max_idx+1] = h_tilde_plus
-            h_chain = np.delete(h_chain, max_idx)
+                h_chain[max_idx-1] = h_tilde_minus; h_chain[max_idx+1] = h_tilde_plus
+                h_chain = np.delete(h_chain, max_idx)
+
+            elif max_idx == 0:
+                # maximum parameter belongs to FIRST site
+                h_tilde_plus  = h_chain[max_idx+1] + J_chain[max_idx]*h_chain[max_idx]/gamma_chain[max_idx]
+
+                # Decimation step
+                J_chain = np.delete(J_chain, max_idx)
+                gamma_chain = np.delete(gamma_chain, max_idx)
+                h_chain = np.delete(h_chain, max_idx)
+                h_chain[max_idx] = h_tilde_plus
+
+            elif max_idx == N_s-1:
+                # maximum parameter belongs to LAST site
+                h_tilde_minus = h_chain[max_idx-1] + J_chain[max_idx-1]*h_chain[max_idx]/gamma_chain[max_idx]
+
+                # Decimation step
+                J_chain = np.delete(J_chain, max_idx-1)
+                gamma_chain = np.delete(gamma_chain, max_idx)
+                h_chain = np.delete(h_chain, max_idx)
+                h_chain[max_idx-1] = h_tilde_minus
+
+            else:
+                error_message(True, f"Impossible to remove index {max_idx} from h, gamma lists with sizes {gamma_chain.shape[0]}")
+
+    print(f"{"="*90}\n")
+    print(f"SDRG algorithm converged with Ω = {OMEGA}.")
 
     return OMEGA, h_chain, gamma_chain, J_chain
 
