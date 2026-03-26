@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.random as rnd
 
+from joblib import delayed, Parallel
 from debugging import *
 
 #------------------------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
         print(f"{"="*90}\n\nIteration: {it} \t Ω: {OMEGA} \t Number of sites: {N_s}\n")
         
         kappa_chain = np.sqrt(gamma_chain**2 + h_chain**2)
-        parameters = np.concatenate([2*J_chain, kappa_chain])
+        parameters = np.concatenate([J_chain, kappa_chain])
         max_idx = np.argmax(parameters)
         OMEGA = parameters[max_idx]
 
@@ -60,8 +61,19 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
         checkpoint(DEBUG, msg=f"kappa chain: {kappa_chain}")
         
         if max_idx <= N_s-2: # maximum parameter is a coupling
-            gamma_tilde = gamma_chain[max_idx]*gamma_chain[max_idx+1]/J_chain[max_idx]
-            h_tilde     = h_chain[max_idx] + h_chain[max_idx+1]
+
+            gamma_tilde = 0
+            if h_0 != 0:
+                # 2-order approximation
+                gamma_tilde = gamma_chain[max_idx]*gamma_chain[max_idx+1]/J_chain[max_idx]
+            else:
+                # Analitic expression
+                gamma_tilde = 0.5*( 
+                    np.sqrt(J_chain[max_idx]**2 + (gamma_chain[max_idx]+gamma_chain[max_idx+1])**2) -
+                    np.sqrt(J_chain[max_idx]**2 + (gamma_chain[max_idx]-gamma_chain[max_idx+1])**2)
+                    )
+
+            h_tilde = h_chain[max_idx] + h_chain[max_idx+1]
 
             # Decimation step
             J_chain = np.delete(J_chain, max_idx)
@@ -74,8 +86,6 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
 
         else:            # maximum parameter is a field
             decimated_sites += 1
-            sites_decimation_fraction[it] = decimated_sites/it
-
             max_idx = max_idx-(N_s-1)
 
             if max_idx <= N_s-2 and max_idx >= 1: 
@@ -115,8 +125,25 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
 
             else:
                 error_message(True, f"Impossible to remove index {max_idx} from h, gamma lists with sizes {gamma_chain.shape[0]}")
+        
+        # Save sites decimation counter
+        sites_decimation_fraction[it] = decimated_sites/it
 
     print(f"{"="*90}\n")
     print(f"SDRG algorithm converged with Ω = {OMEGA}.")
 
     return OMEGA, sites_decimation_fraction
+
+
+def Iterated_RandomIsing_SDRG(N_iter, N, zeta, gamma_0, h_0, thresh, DEBUG):
+    '''
+        Iterates the RandomIsing_SDRG algorithm and provides averaged values for the decimation
+        fractions with relative error.
+    '''
+
+    results = Parallel(n_jobs=-2)(delayed(RandomIsing_SDRG)(N, zeta, gamma_0, h_0, thresh, DEBUG) for _ in range(N_iter))
+    
+    OMEGA_list, decimation_fractions_list = zip(*results)
+    decimation_fraction_matrix = np.vstack(decimation_fractions_list)
+
+    return OMEGA_list, np.mean(decimation_fraction_matrix, axis=0), np.std(decimation_fraction_matrix, axis=0)
