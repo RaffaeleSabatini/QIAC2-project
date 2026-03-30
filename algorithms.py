@@ -38,7 +38,7 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
     J     = rnd.uniform(size=N)
 
     h     = rnd.uniform(-h_0/2, h_0/2, N)
-    mask = rnd.choice([True, False], size=N, replace=True, p=[zeta, 1-zeta])
+    mask  = rnd.choice([True, False], size=N, replace=True, p=[zeta, 1-zeta])
     h[mask == False] = 0
 
     # Iterating decimation as long as OMEGA > thresh
@@ -53,7 +53,7 @@ def RandomIsing_SDRG(N, zeta, gamma_0, h_0, thresh, DEBUG):
         print(f"{"="*90}\n\nIteration: {it} \t Ω: {OMEGA} \t Number of sites: {N_s}\n")
         
         kappa = np.sqrt(gamma**2 + h**2)
-        parameters = np.concatenate([2*J, kappa])
+        parameters = np.concatenate([J, kappa])
         max_idx = np.argmax(parameters)
         OMEGA = parameters[max_idx]
 
