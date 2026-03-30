@@ -25,7 +25,7 @@ def RandomIsing_SDRG_single_core(N_iter, N, gamma_0, h_0, J_0=1, zeta=1, thresh=
     print(f"{"="*90}\n---Executing SD renormalization algorithm on chain #{N_iter}---\n{"="*90}")
 
     # Output values
-    OMEGA = 1e9
+    omega_cache = np.zeros(shape=N)
     site_decimation_cache = np.zeros(shape=N)
 
     # Initializing spin chain with field and coupling parameters
@@ -36,21 +36,20 @@ def RandomIsing_SDRG_single_core(N_iter, N, gamma_0, h_0, J_0=1, zeta=1, thresh=
     mask  = rnd.choice([True, False], size=N, replace=True, p=[zeta, 1-zeta])
     h[mask == False] = 0
 
-    # Iterating decimation as long as OMEGA > thresh
-    it = 0; N_s = N
-
-    while (OMEGA > thresh) and (N_s > 2):
-        it += 1
+    # Iterating decimation as long as there are more than 2 sites
+    it  = 0
+    N_s = h.shape[0]
+    while N_s > 2:
         N_s = h.shape[0] # Number of sites
 
-        error_message(h.shape[0] != gamma.shape[0], "Size mismatch between h-chain and gamma-chain")
-        error_message(h.shape[0] != J.shape[0], "Size mismatch between h-chain and J-chain")
-        checkpoint(DEBUG, f"{"="*90}\n\nIteration: {it} \t Ω: {OMEGA} \t Number of sites: {N_s}\n")
-        
         kappa = np.sqrt(gamma**2 + h**2)
         parameters = np.concatenate([J, kappa])
         max_idx = np.argmax(parameters)
         OMEGA = parameters[max_idx]
+
+        error_message(h.shape[0] != gamma.shape[0], "Size mismatch between h-chain and gamma-chain")
+        error_message(h.shape[0] != J.shape[0], "Size mismatch between h-chain and J-chain")
+        checkpoint(DEBUG, f"{"="*90}\n\nIteration: {it} \t Ω: {OMEGA} \t Number of sites: {N_s}\n")
 
         checkpoint(DEBUG, msg=f"OMEGA: {OMEGA} \t maximum index: {(max_idx, "[COUPLING]") if max_idx < N_s else (max_idx-N_s, "[FIELD]")}")
         checkpoint(DEBUG, msg=f"Coupling chain: {J}")
@@ -106,6 +105,9 @@ def RandomIsing_SDRG_single_core(N_iter, N, gamma_0, h_0, J_0=1, zeta=1, thresh=
 
             # Save sites decimation counter
             site_decimation_cache[it] = 1
+        
+        omega_cache[it] = OMEGA
+        it += 1
 
     print(f"{"="*90}\n---SDRG algorithm executed on chain #{N_iter}---\n{"="*90}")
     return OMEGA, site_decimation_cache

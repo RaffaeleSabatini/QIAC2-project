@@ -24,13 +24,22 @@ def error_message(condition, msg=""):
 
 #------------------------------------------------------
 
-def save_decimations(decimation_list, gamma_0, h_0, N, M, idx=0, dir="saves"):
-    os.makedirs(dir, exist_ok=True)
-    file_name = f"{dir}/decimations_M{M}_N{N}_gamma{gamma_0}_h{h_0}_{idx}"
+def save_results(results, kind, gamma_0, h_0, N, M, idx=0):
+    os.makedirs(kind, exist_ok=True)
+    file_name = f"{kind}/M{M}_N{N}_gamma{gamma_0}_h{h_0}_{idx}"
 
     try:
-        np.save(file_name, decimation_list)
+        np.save(file_name, results)
         print(f"File saved with name {file_name}")
-        
+
     except Exception as e:
         print(f"Error during saving: {e}")
+
+
+def read_results(file_name):
+    try:
+        result = np.load(file_name)
+    except Exception as e:
+        print(f"Error during reading: {e}")
+    
+    return result
