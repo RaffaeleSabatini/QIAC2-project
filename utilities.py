@@ -25,10 +25,12 @@ def error_message(condition, msg=""):
 
 
 #------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def save_results(results, kind, gamma_0, h_0, N, M, idx=0):
-    os.makedirs(kind, exist_ok=True)
-    file_name = f"{kind}/M{M}_N{N}_gamma{gamma_0}_h{h_0}_{idx}"
+def save_results(results, dir_name, gamma_0, h_0, N, M, idx=0):
+    dir_path = os.path.join(BASE_DIR, dir_name)
+    os.makedirs(dir_path, exist_ok=True)
+    file_name = f"{dir_path}/M{M}_N{N}_gamma{gamma_0}_h{h_0}_{idx}"
 
     try:
         np.save(file_name, results)
@@ -38,7 +40,8 @@ def save_results(results, kind, gamma_0, h_0, N, M, idx=0):
         print(f"Error during saving: {e}")
 
 
-def read_results(dir, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
+def read_results(dir_name, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
+    dir_path = os.path.join(BASE_DIR, dir_name)
     file_name = ""
     if None not in [gamma_0, h_0, N, M, idx]:
         # If all parameters are provided, compose the name of the file
@@ -47,9 +50,13 @@ def read_results(dir, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
         # Otherwise look all the files
         file_name = "*"
 
-    query = f"{dir}/{file_name}"
+    query = os.path.join(dir_path, file_name)
     files = glob(query) 
     print(f"Reading from {query}")
+
+    if not files:
+        print("No files found!")
+        return None
 
     size = (N, len(files)) if len(files) > 1 else N
     results = np.zeros(shape = size)
