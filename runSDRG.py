@@ -4,16 +4,13 @@ from utilities import *
 
 from itertools import product
 
-M     = int(input("Input number of samples (M):\n"))
-N     = 2048
-ZETA  = 1
-H0    = np.exp([-3*k for k in range(2, 6)])
+M      = int(input("Input number of samples (M):\n"))
+N_list = [2**n for n in range(7, 14)]
+ZETA   = 1
+H0     = 0
+GAMMA0 = 0.93
 
-Np = 8
-interpol = np.array([np.sqrt(k) / np.sqrt(Np) for k in range(0, Np+1)])
-interpol = np.concatenate([0.5*interpol, 1 - interpol[::-1]*0.5])
-gamma_list = 0.88 + interpol*(1.02-0.88)
-
-for h0, gamma0 in product(H0, gamma_list):
-        omega_list, decimations, magnetic_moment = RandomIsing_SDRG(M, N, gamma0, h0, J_0=1, zeta=ZETA, n_cores=4, DEBUG=False)
-        save_results(omega_list, "crossover-region2", gamma0, h0, N, M, 0)
+for h0, N in product(H0, N_list):
+        omega_list, decimations, magnetic_moment = RandomIsing_SDRG(M, N, GAMMA0, h0, J_0=1, zeta=ZETA, n_cores=4, DEBUG=False)
+        save_results(omega_list, "log_gaps_at_gamma0C", GAMMA0, h0, N, M, 0)
+        save_results(magnetic_moment, "mm_at_gamma0C", GAMMA0, h0, N, M, 0)
