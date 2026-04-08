@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from matplotlib import colormaps
 from utilities import *
 
 #------------------------------------------------------------------------
@@ -127,3 +128,27 @@ def plot_scaling_behaviour(mm_array, h0_array, L_array):
 
     for plot in range(n_plots):
         axes.scatter(h0_array, mm_array[:, plot])
+
+#-----------------------------------------------------------------------------------------
+
+def plot_analysics_at_critical_point(results, ylabel="", log_abs = False):
+    N_list      = results.keys()
+    fig, axes = plt.subplots(dpi=200, figsize=(12, 7))
+    cmaps = colormaps.get_cmap("viridis")
+
+    for i, N in enumerate(N_list):
+        result_matrix = np.array(results[N])
+
+        x_val = result_matrix[:, 0]
+        y_val = np.abs(np.log(result_matrix[:, 1])) if log_abs else result_matrix[:, 1] 
+        sorter = np.argsort(x_val)
+
+        axes.plot(x_val[sorter], y_val[sorter], 'o-', label = N, color = cmaps(i/(len(N_list)+1)))
+    
+    axes.legend(title="N:")
+    axes.grid()
+    axes.set_xlabel(fr"$h_0$")
+    axes.set_xscale("log")
+    axes.set_ylabel(ylabel)
+
+    fig.tight_layout()

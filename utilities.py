@@ -4,6 +4,8 @@ import numpy as np
 import os
 import re
 
+#---------------------------------------------------------------------------------
+
 def checkpoint(DEBUG, msg="", col=""):
     if DEBUG:
         if msg != "":
@@ -24,7 +26,7 @@ def error_message(condition, msg=""):
         print(error)
 
 
-#------------------------------------------------------
+#---------------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def save_results(results, dir_name, gamma_0, h_0, N, M, idx=0):
@@ -41,6 +43,13 @@ def save_results(results, dir_name, gamma_0, h_0, N, M, idx=0):
 
 
 def read_results(dir_name, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
+    '''
+        Returns a numpy matrix/array whose columns/values are the content
+        of each file in dir_name. 
+
+        NOTE: the number of columns/values in the output is fixed to N. 
+        To perform analyses at different N (chain lengths), use read_final_values.
+    '''
     dir_path = os.path.join(BASE_DIR, dir_name)
     file_name = ""
     if None not in [gamma_0, h_0, N, M, idx]:
@@ -87,3 +96,69 @@ def read_results(dir_name, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
             h_list.append(h_match.group(1))
 
         return results, np.array(gamma_list, dtype=float), np.array(h_list, dtype=float)
+    
+
+def read_final_values(dir_name, gamma_0=None, h_0=None, N=2048, M=None, idx=None):
+    '''
+        Returns a dictionary whose values are matrices containing final values (columns) 
+        vs h0 (rows) and the keys are the lengths (M) of the chain.
+    '''
+
+    dir_path = os.path.join(BASE_DIR, dir_name)
+    file_name = ""
+    if None not in [gamma_0, h_0, N, M, idx]:
+        # If all parameters are provided, compose the name of the file
+        file_name = f"M{M}_N{N}_gamma{gamma_0}_h{h_0}_{idx}"
+    else:
+        # Otherwise look all the files
+        file_name = "*"
+
+    query = os.path.join(dir_path, file_name)
+    files = glob(query) 
+    print(f"Reading from {query}")
+
+    if not files:
+        print("No files found!")
+        return None
+    
+    if file_name != "*":
+        # Single file is loaded
+        result = np.load(files)
+        return result[-1]
+    
+    else:
+        # Create dictionary whose entries are matrices and keys are N-values
+        results = {}
+
+        N_pattern = r"_N(.*?)\_"
+        h_pattern = r"_h(.*?)\_"
+        N_list = [] # to keep track of new dictionary entries
+        for file in files:
+            # From each file extract N, h0, and last value
+            N_match = re.search(N_pattern, file)
+            N_new = int(N_match.group(1))
+
+            h_match = re.search(h_pattern, file)
+            h_new = h_match.group(1)
+
+            loaded_vals = np.load(file)
+            if loaded_vals.ndim > 0:
+                new_val = loaded_vals[-2]
+            else:
+                new_val = loaded_vals
+
+            # Append result to the dictionary
+            if N_new not in N_list:
+                # If N_new is not yet a key in results, create a new entry in the dicttionary
+                N_list.append(N_new)
+                results[N_new] = np.matrix([h_new, new_val], dtype=float)
+            else:
+                # If N_new is already a key, update the matrix by adding a new row
+                new_row = np.matrix([h_new, new_val], dtype=float)
+                results[N_new] = np.r_[results[N_new], new_row]
+        
+        sorted_res = {key: results[key] for key in sorted(results)}
+        print(sorted_res.keys())
+        return sorted_res
+
+        
