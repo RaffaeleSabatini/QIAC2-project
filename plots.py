@@ -51,24 +51,40 @@ def plot_results(type, results_vec, N, gamma=None, h=None):
     gamma_provided = np.all(gamma != None)
     if gamma_provided:
         # Sort plots in order of gamma values
-        sort_idx = np.argsort(gamma)
+        sort_idx = np.argsort(gamma)[::-1]
         gamma = gamma[sort_idx]
         results_vec = results_vec[:, sort_idx]
     
+    cmap = colormaps.get_cmap("viridis")
     for n in range(n_plots):
         results = results_vec[:, n] if len(results_vec.shape) == 2 else results_vec
 
         if type=="decimations":
             # plot site decimation fractions
-            ax.scatter(np.arange(N), results[::-1], s=2, label=fr"$\Gamma = {gamma[n]}$" if gamma_provided else n)
+            ax.plot(
+                np.arange(N),
+                results[::-1],
+                "-o",
+                label=fr"$\Gamma = {gamma[n]}$" if gamma_provided else n,
+                ms=1.5,
+                c = cmap((n+1)/n_plots)
+                )
 
         elif type=="excitations":
             # plot log-excitations
-            ax.scatter(np.arange(N), np.log(results[::-1]), s=2, label=fr"$\Gamma = {gamma[n]}$" if gamma_provided else n)
+            ax.plot(
+                np.arange(N),
+                np.log(results[::-1]),
+                "-o",
+                label=fr"$\Gamma = {gamma[n]}$" if gamma_provided else n,
+                ms=1.5,
+                c = cmap((n+1)/n_plots)
+                )
     
 
     ax.set_xlabel(r"Remaining sites, $n$")
     ax.set_ylabel(fr"{ylabel[type]}")
+    ax.set_xlim(0, N)
 
     if type == "decimations":
         ax.set_yticks(np.arange(0, 1.1, 0.1))
